@@ -708,6 +708,294 @@ CREATE TABLE payment_qr_codes (
 );
 ```
 
+**25. expense_groups** - Personal expense sharing groups (FREE feature)
+```sql
+CREATE TABLE expense_groups (
+  id UUID PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  description TEXT,
+  category VARCHAR(50) DEFAULT 'General', -- Friends, Family, Trip, Event, etc.
+  
+  created_by UUID NOT NULL, -- User who created the group
+  business_id UUID REFERENCES businesses(id), -- Optional link to business
+  
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  INDEX idx_created_by (created_by),
+  INDEX idx_business (business_id)
+);
+```
+
+**26. expense_group_members** - Members of expense groups
+```sql
+CREATE TABLE expense_group_members (
+  id UUID PRIMARY KEY,
+  group_id UUID NOT NULL REFERENCES expense_groups(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL, -- Can be internal user or external contact
+  
+  -- For external contacts (not registered users)
+  contact_name VARCHAR(100),
+  contact_phone VARCHAR(15),
+  contact_email VARCHAR(255),
+  
+  joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  is_active BOOLEAN DEFAULT true,
+  
+  UNIQUE(group_id, user_id),
+  INDEX idx_group (group_id),
+  INDEX idx_user (user_id)
+);
+```
+
+**27. expense_splits** - Individual expense split configurations
+```sql
+CREATE TABLE expense_splits (
+  id UUID PRIMARY KEY,
+  group_id UUID NOT NULL REFERENCES expense_groups(id) ON DELETE CASCADE,
+  
+  description VARCHAR(255) NOT NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  currency VARCHAR(3) DEFAULT 'INR',
+  category VARCHAR(50) DEFAULT 'General',
+  
+  paid_by UUID NOT NULL, -- Member who paid
+  split_type VARCHAR(20) NOT NULL, -- equal, percentage, exact, shares
+  
+  -- Split configuration (JSON for flexibility)
+  split_config JSONB, -- Stores member amounts/shares based on split_type
+  
+  expense_date DATE NOT NULL,
+  receipt_url TEXT, -- Optional receipt image URL
+  
+  is_settled BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  INDEX idx_group (group_id),
+  INDEX idx_paid_by (paid_by),
+  INDEX idx_date (expense_date)
+);
+```
+
+**28. group_balances** - Running balances between group members
+```sql
+CREATE TABLE group_balances (
+  id UUID PRIMARY KEY,
+  group_id UUID NOT NULL REFERENCES expense_groups(id) ON DELETE CASCADE,
+  
+  from_member UUID NOT NULL, -- Who owes money
+  to_member UUID NOT NULL,   -- Who is owed money
+  
+  balance DECIMAL(12,2) NOT NULL DEFAULT 0, -- Positive = from_member owes to_member
+  
+  last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  UNIQUE(group_id, from_member, to_member),
+  INDEX idx_group (group_id),
+  INDEX idx_members (from_member, to_member)
+);
+```
+
+**29. group_settlements** - Record of balance settlements
+```sql
+CREATE TABLE group_settlements (
+  id UUID PRIMARY KEY,
+  group_id UUID NOT NULL REFERENCES expense_groups(id) ON DELETE CASCADE,
+  
+  from_member UUID NOT NULL, -- Who paid
+  to_member UUID NOT NULL,   -- Who received payment
+  
+  amount DECIMAL(12,2) NOT NULL,
+  currency VARCHAR(3) DEFAULT 'INR',
+  payment_method VARCHAR(50), -- UPI, Cash, Bank Transfer, etc.
+  
+  notes TEXT,
+  settled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  INDEX idx_group (group_id),
+  INDEX idx_members (from_member, to_member)
+);
+```
+
+**30. personal_ledgers** - Individual debt tracking (FREE feature)
+```sql
+CREATE TABLE personal_ledgers (
+  id UUID PRIMARY KEY,
+  user_id UUID NOT NULL, -- Owner of the ledger
+  
+  -- Contact information (can be non-registered users)
+  contact_name VARCHAR(100) NOT NULL,
+  contact_phone VARCHAR(15),
+  contact_email VARCHAR(255),
+  
+  -- Balance tracking
+  balance DECIMAL(12,2) NOT NULL DEFAULT 0, -- Positive = contact owes user, Negative = user owes contact
+  currency VARCHAR(3) DEFAULT 'INR',
+  
+  -- Last transaction
+  last_transaction_date DATE,
+  last_transaction_amount DECIMAL(12,2),
+  last_transaction_description TEXT,
+  
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  UNIQUE(user_id, contact_phone), -- One ledger per contact per user
+  INDEX idx_user (user_id),
+  INDEX idx_contact (contact_phone, contact_email)
+);
+```
+
+**31. personal_ledger_transactions** - Transaction history for personal ledgers
+```sql
+CREATE TABLE personal_ledger_transactions (
+  id UUID PRIMARY KEY,
+  ledger_id UUID NOT NULL REFERENCES personal_ledgers(id) ON DELETE CASCADE,
+  
+  amount DECIMAL(12,2) NOT NULL,
+  transaction_type VARCHAR(20) NOT NULL, -- 'credit' (they paid me), 'debit' (I paid them), 'settlement'
+  description TEXT,
+  
+  -- For settlements
+  payment_method VARCHAR(50), -- UPI, Cash, Bank Transfer, etc.
+  settlement_notes TEXT,
+  
+  transaction_date DATE NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  INDEX idx_ledger (ledger_id),
+  INDEX idx_date (transaction_date)
+);
+```
+
+**32. digital_khata** - Khatabook-style ledger books (FREE feature)
+```sql
+CREATE TABLE digital_khata (
+  id UUID PRIMARY KEY,
+  name VARCHAR(100) NOT NULL, -- "Ramu Kirana", "Personal Khata", etc.
+  type VARCHAR(20) NOT NULL DEFAULT 'business', -- 'business', 'personal'
+  
+  owner_id UUID NOT NULL, -- User who owns this khata
+  business_id UUID REFERENCES businesses(id), -- Link to business if applicable
+  
+  -- Multi-shop support
+  shop_name VARCHAR(100),
+  shop_address TEXT,
+  shop_contact VARCHAR(15),
+  
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  UNIQUE(owner_id, name), -- One khata per name per user
+  INDEX idx_owner (owner_id),
+  INDEX idx_business (business_id)
+);
+```
+
+**33. khata_transactions** - Credit/debit transactions in khata books
+```sql
+CREATE TABLE khata_transactions (
+  id UUID PRIMARY KEY,
+  khata_id UUID NOT NULL REFERENCES digital_khata(id) ON DELETE CASCADE,
+  party_id UUID, -- Can be NULL for cash transactions
+  
+  -- Transaction details
+  type VARCHAR(10) NOT NULL, -- 'credit' (diye), 'debit' (liye)
+  amount DECIMAL(12,2) NOT NULL,
+  description TEXT,
+  category VARCHAR(50) DEFAULT 'general', -- goods, services, loans, etc.
+  
+  -- Party info (for non-registered parties)
+  party_name VARCHAR(100),
+  party_phone VARCHAR(15),
+  party_address TEXT,
+  
+  transaction_date DATE NOT NULL,
+  due_date DATE, -- For credit transactions
+  
+  -- Receipt/attachment
+  receipt_url TEXT,
+  voice_note_url TEXT, -- For voice entries
+  
+  -- Status
+  is_settled BOOLEAN DEFAULT false,
+  settled_date DATE,
+  
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  INDEX idx_khata (khata_id),
+  INDEX idx_party (party_id),
+  INDEX idx_date (transaction_date),
+  INDEX idx_type (type)
+);
+```
+
+**34. khata_parties** - Customers/suppliers in khata books
+```sql
+CREATE TABLE khata_parties (
+  id UUID PRIMARY KEY,
+  khata_id UUID NOT NULL REFERENCES digital_khata(id) ON DELETE CASCADE,
+  
+  name VARCHAR(100) NOT NULL,
+  phone VARCHAR(15),
+  email VARCHAR(255),
+  address TEXT,
+  
+  -- Balance tracking
+  total_credit DECIMAL(12,2) DEFAULT 0, -- Money given (outstanding)
+  total_debit DECIMAL(12,2) DEFAULT 0,  -- Money received
+  balance DECIMAL(12,2) DEFAULT 0,      -- Outstanding amount
+  
+  -- Last transaction
+  last_transaction_date DATE,
+  last_transaction_type VARCHAR(10),
+  last_transaction_amount DECIMAL(12,2),
+  
+  -- Communication preferences
+  sms_enabled BOOLEAN DEFAULT true,
+  whatsapp_enabled BOOLEAN DEFAULT true,
+  email_enabled BOOLEAN DEFAULT false,
+  
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  UNIQUE(khata_id, phone), -- One party per phone per khata
+  INDEX idx_khata (khata_id),
+  INDEX idx_balance (balance)
+);
+```
+
+**35. khata_reminders** - Payment reminder history
+```sql
+CREATE TABLE khata_reminders (
+  id UUID PRIMARY KEY,
+  khata_id UUID NOT NULL REFERENCES digital_khata(id) ON DELETE CASCADE,
+  party_id UUID NOT NULL REFERENCES khata_parties(id) ON DELETE CASCADE,
+  
+  reminder_type VARCHAR(20) NOT NULL, -- 'sms', 'whatsapp', 'email'
+  message TEXT NOT NULL,
+  amount DECIMAL(12,2),
+  
+  status VARCHAR(20) DEFAULT 'sent', -- 'sent', 'delivered', 'failed'
+  sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  -- Response tracking
+  response_received BOOLEAN DEFAULT false,
+  response_amount DECIMAL(12,2),
+  response_date DATE,
+  
+  INDEX idx_khata (khata_id),
+  INDEX idx_party (party_id),
+  INDEX idx_sent (sent_at)
+);
+```
+
 ---
 
 ## 🏗️ Codebase Structure (No Duplication)

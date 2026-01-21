@@ -1,6 +1,6 @@
 # 2. SmartKhata - Complete Feature Specifications
 
-**Purpose**: All 35 features across 6 categories with technical specs  
+**Purpose**: All 38 features across 6 categories with technical specs  
 **Audience**: Product managers, developers, QA  
 **Status**: ✅ Consolidated from all FEATURE_*.md files
 
@@ -8,7 +8,7 @@ This document replaces: FEATURE_INVOICING.md, FEATURE_EINVOICING.md, FEATURE_PUR
 
 ---
 
-## 📋 Feature Categories (49 Total - Increased from 48)
+## 📋 Feature Categories (38 Total)
 
 ### 1. Core Features (5)
 1. **Invoicing** - Create and manage sales invoices with 5-step flow
@@ -34,7 +34,7 @@ This document replaces: FEATURE_INVOICING.md, FEATURE_EINVOICING.md, FEATURE_PUR
 15. **PDF** - Custom PDF generation with branding
 16. **Print** - Normal and thermal printer support
 
-### 5. Advanced (18) - EXPANDED
+### 5. Advanced (18)
 17. **Reports** - P&L, Cash Flow, GST analysis
 18. **Shared Ledger** - Customer portal (read-only access)
 19. **POS** - Point of sale mode for retail
@@ -55,10 +55,10 @@ This document replaces: FEATURE_INVOICING.md, FEATURE_EINVOICING.md, FEATURE_PUR
 34. **Purchase Orders & Advanced Invoicing** - PO generation, bank details, multi-QR (NEW)
 
 ### 6. Integration (4)
-33. **Tally API** - Tally integration for data sync
-34. **REST API** - Custom integrations
-35. **Custom Themes** - White-label styling with branding
-28. **Bulk Operations** - Import/export data
+35. **Tally API** - Tally integration for data sync
+36. **REST API** - Custom integrations
+37. **Custom Themes** - White-label styling with branding
+38. **Bulk Operations** - Import/export data
 
 ---
 

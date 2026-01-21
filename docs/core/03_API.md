@@ -302,6 +302,136 @@ POST   /api/reconciliation/confirm       - Confirm payment match
 GET    /api/reconciliation/status        - Get reconciliation status
 ```
 
+### 11. Expense Splitting API (FREE)
+
+```
+POST   /api/expense-groups                 - Create expense group
+GET    /api/expense-groups                 - List user's groups
+GET    /api/expense-groups/:id             - Get group details
+PUT    /api/expense-groups/:id             - Update group
+DELETE /api/expense-groups/:id             - Delete group
+
+POST   /api/expense-groups/:id/members     - Add members to group
+DELETE /api/expense-groups/:id/members/:user_id - Remove member
+
+POST   /api/expense-groups/:id/expenses    - Add expense to group
+GET    /api/expense-groups/:id/expenses    - List group expenses
+PUT    /api/expense-groups/:id/expenses/:expense_id - Update expense
+DELETE /api/expense-groups/:id/expenses/:expense_id - Delete expense
+
+POST   /api/expense-groups/:id/splits      - Configure expense splits
+GET    /api/expense-groups/:id/splits      - Get split configurations
+
+GET    /api/expense-groups/:id/balances    - Get group balances
+POST   /api/expense-groups/:id/settle      - Record settlement payment
+GET    /api/expense-groups/:id/activity    - Get group activity feed
+
+POST   /api/personal-ledger                - Add personal ledger entry
+GET    /api/personal-ledger                - Get personal balances
+GET    /api/personal-ledger/:contact_id    - Get balance with specific contact
+POST   /api/personal-ledger/:contact_id/settle - Record settlement
+DELETE /api/personal-ledger/:contact_id    - Remove contact from ledger
+
+POST   /api/invite                         - Invite friend to platform
+GET    /api/invite                         - List sent invitations
+POST   /api/invite/:id/resend              - Resend invitation
+```
+
+**Split Types**:
+- `equal`: Divide equally among members
+- `percentage`: Custom percentages per member
+- `exact`: Exact amounts per member
+- `shares`: Split based on number of shares
+
+**Personal Ledger Types**:
+- `i_owe`: I owe this person money
+- `owes_me`: This person owes me money
+
+**Example: Create Group Expense**:
+```
+POST /api/expense-groups/123/expenses
+{
+  "description": "Dinner at Restaurant",
+  "amount": 1200.00,
+  "currency": "INR",
+  "category": "Food",
+  "split_type": "equal",
+  "paid_by": "user-456",
+  "split_among": ["user-456", "user-789", "user-101"]
+}
+```
+
+**Example: Add Personal Ledger Entry**:
+```
+POST /api/personal-ledger
+{
+  "contact_name": "John Doe",
+  "contact_phone": "+91-9876543210",
+  "amount": 500.00,
+  "type": "owes_me",
+  "description": "Movie tickets",
+  "due_date": "2026-02-01"
+}
+```
+
+### 12. Digital Bahi Khata API (FREE)
+
+```
+POST   /api/digital-khata                 - Create new khata book
+GET    /api/digital-khata                 - List user's khata books
+GET    /api/digital-khata/:id             - Get khata book details
+PUT    /api/digital-khata/:id             - Update khata book
+DELETE /api/digital-khata/:id             - Delete khata book
+
+POST   /api/digital-khata/:id/transactions - Add transaction (credit/debit)
+GET    /api/digital-khata/:id/transactions - List transactions
+GET    /api/digital-khata/:id/transactions/:tid - Get transaction details
+PUT    /api/digital-khata/:id/transactions/:tid - Update transaction
+DELETE /api/digital-khata/:id/transactions/:tid - Delete transaction
+
+POST   /api/digital-khata/:id/parties      - Add party (customer/supplier)
+GET    /api/digital-khata/:id/parties      - List parties
+GET    /api/digital-khata/:id/parties/:pid - Get party details
+PUT    /api/digital-khata/:id/parties/:pid - Update party
+
+GET    /api/digital-khata/:id/balance      - Get outstanding balance
+POST   /api/digital-khata/:id/reminders    - Send payment reminder
+POST   /api/digital-khata/:id/voice-entry  - Voice-to-text transaction
+GET    /api/digital-khata/:id/reports      - Get basic reports
+```
+
+**Transaction Types**:
+- `credit`: Money given (diye) - increases outstanding
+- `debit`: Money received (liye) - decreases outstanding
+
+**Voice Input Languages**:
+- `hi`: Hindi
+- `en`: English
+- `hi-en`: Mixed Hindi-English
+
+**Example: Add Khata Transaction**:
+```
+POST /api/digital-khata/123/transactions
+{
+  "party_id": "party-456",
+  "type": "credit",
+  "amount": 2500.00,
+  "description": "Rice and dal delivery",
+  "category": "goods",
+  "transaction_date": "2026-01-20"
+}
+```
+
+**Example: Voice Entry**:
+```
+POST /api/digital-khata/123/voice-entry
+{
+  "audio_data": "base64-encoded-audio",
+  "language": "hi",
+  "party_context": "Ramu Kirana"
+}
+```
+
 ---
 
 ## 🔄 Pagination & Filtering
