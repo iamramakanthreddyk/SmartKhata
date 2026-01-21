@@ -602,6 +602,7 @@ Each prompt guides Copilot to:
 - Wait for approval
 - Implement code
 - Update existing docs only (no new .md files)
+- **CRITICAL: Keep docs in sync as code changes**
 - Verify success
 
 **How to use:**
@@ -610,6 +611,104 @@ Each prompt guides Copilot to:
 3. Copy the entire prompt block
 4. Paste into VS Code Copilot Chat
 5. Copilot will do discovery automatically
+6. **After each code change, update docs immediately**
+
+---
+
+## 🔄 Keeping Docs in Sync (The Critical Part)
+
+**The Problem**: You add a database column, but forget to update `01_ARCHITECTURE.md`. Next time Copilot helps, it doesn't know about the new column.
+
+**The Solution**: Update docs FIRST, then code.
+
+### When You Change the Database Schema
+```
+BEFORE writing migration:
+  1. Update docs/core/01_ARCHITECTURE.md
+     - Add new column to table definition
+     - Update ERD if relationships changed
+  2. Update docs/core/01_ARCHITECTURE.md
+     - Add migration SQL in "Database Migrations" section
+  3. Write the actual migration file
+  
+RESULT: Next time Copilot reads 01_ARCHITECTURE.md, it knows about changes ✓
+```
+
+### When You Change an API Endpoint
+```
+BEFORE changing code:
+  1. Update docs/core/03_API.md
+     - Change endpoint spec (request/response fields)
+     - Note if breaking change (bump to /api/v2)
+  2. Create migration guide if breaking
+  3. Update code to match spec
+  
+RESULT: Copilot always reads current endpoint spec ✓
+```
+
+### When You Add/Change Feature Logic
+```
+BEFORE implementing:
+  1. Update docs/core/02_FEATURES.md
+     - Add feature or update existing entry
+  2. Update docs/core/ARCHITECTURE_DECISION_MATRIX.md
+     - Add why this approach (if new decision)
+  3. Implement service/repository
+  
+RESULT: Copilot knows feature scope and design intent ✓
+```
+
+### Example: Adding discount_percent Column to parties Table
+
+```
+Step 1: Update 01_ARCHITECTURE.md (ERD Section)
+---
+parties:
+  id: uuid (PK)
+  name: varchar(255)
+  phone: varchar(20)
+  email: varchar(255)
+  ← BEFORE: ended here
+  discount_percent: numeric(5,2) DEFAULT 0  ← ADD THIS
+  is_deleted: boolean
+  created_at: timestamp
+  updated_at: timestamp
+---
+
+Step 2: Add to 01_ARCHITECTURE.md (Migrations Section)
+---
+ALTER TABLE parties ADD COLUMN discount_percent numeric(5,2) DEFAULT 0;
+---
+
+Step 3: Update 03_API.md
+---
+GET /api/v1/parties/{id}
+Response:
+{
+  id: uuid
+  name: string
+  phone: string
+  email: string
+  discountPercent: number  ← ADD THIS (camelCase in API!)
+  createdAt: timestamp
+}
+---
+
+Step 4: Update 02_FEATURES.md
+---
+Customer Discount Management - Customers get % discounts based on volume
+---
+
+Step 5: Code the changes
+- Create migration matching step 2
+- Update PartyType Zod schema to include discountPercent
+- Update PartyAdapter to transform discount_percent ↔ discountPercent
+- Update PartyRepository to query discount_percent
+- Update PartyService with discount logic
+- Update UI to display/edit discountPercent
+
+RESULT: Docs and code are in sync. Copilot ALWAYS has current state ✓
+```
 
 ---
 
@@ -619,15 +718,19 @@ When adding ANY feature:
 
 | What | Where | Status |
 |------|-------|--------|
-| **Database Schema** | `docs/core/01_ARCHITECTURE.md` Sec 🗄️ | UPDATE |
-| **Feature Spec** | `docs/core/02_FEATURES.md` | UPDATE |
-| **Error Codes** | `docs/core/ERROR_CODES.md` | UPDATE |
-| **Entity Relationships** | `docs/core/ENTITY_RELATIONSHIPS.md` | UPDATE |
+| **Database Schema** | `docs/core/01_ARCHITECTURE.md` Sec 🗄️ | UPDATE FIRST |
+| **Migration SQL** | `docs/core/01_ARCHITECTURE.md` (Migrations section) | UPDATE FIRST |
+| **API Spec** | `docs/core/03_API.md` | UPDATE FIRST |
+| **Feature Spec** | `docs/core/02_FEATURES.md` | UPDATE FIRST |
+| **Error Codes** | `docs/core/ERROR_CODES.md` | UPDATE (if new errors) |
+| **Entity Relationships** | `docs/core/ENTITY_RELATIONSHIPS.md` | UPDATE (if new relations) |
 | **Types** | `/src/types/shared/` (new file OK) | CREATE CODE |
 | **Service** | `/src/services/` (new file OK) | CREATE CODE |
 | **Repository** | `/src/repositories/` (new file OK) | CREATE CODE |
 | **Routes** | `/src/routes/v2/` (new file OK) | CREATE CODE |
 | **Tests** | `/src/__tests__/` (new file OK) | CREATE CODE |
+
+**KEY**: Docs marked "UPDATE FIRST" must be changed before you write code.
 
 ---
 

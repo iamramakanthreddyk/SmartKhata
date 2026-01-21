@@ -4,6 +4,18 @@
 
 ---
 
+## ⚡ START HERE: DEVELOPER RULES
+
+**→ [DEVELOPER_RULES.md](DEVELOPER_RULES.md)** ⭐ **READ THIS FIRST**
+- The ONE Golden Rule (update, don't create)
+- Enforcement mechanisms (git hook, PR checklist, Copilot)
+- Red flags that get you blocked
+- Examples of good vs. bad approaches
+
+**Why?** This prevents 62 files from becoming 62 again.
+
+---
+
 ## 📚 Which Doc Should I Read?
 
 ### **When starting a new feature:**
